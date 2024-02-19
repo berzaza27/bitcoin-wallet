@@ -43,10 +43,12 @@ import org.bitcoinj.core.VersionMessage;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * @author Andreas Schildbach
@@ -55,6 +57,7 @@ public class PeerListAdapter extends ListAdapter<PeerListAdapter.ListItem, PeerL
     public static List<ListItem> buildListItems(final Context context, final List<Peer> peers,
             final Map<InetAddress, String> hostnames) {
         final List<ListItem> items = new ArrayList<>(peers.size());
+        final Set<Long> itemIds = new HashSet<>(peers.size());
         for (final Peer peer : peers) {
             final PeerAddress peerAddress = peer.getAddress();
             final InetAddress inetAddress = peerAddress.getAddr();
@@ -72,7 +75,7 @@ public class PeerListAdapter extends ListAdapter<PeerListAdapter.ListItem, PeerL
             final VersionMessage versionMessage = peer.getPeerVersionMessage();
             final String version = versionMessage.subVer;
             final String protocol = "protocol: " + versionMessage.clientVersion;
-            final String services = peer.toStringServices(versionMessage.localServices).toLowerCase(Locale.US);
+            final String services = VersionMessage.toStringServices(versionMessage.localServices).toLowerCase(Locale.US);
             final long pingTime = peer.getPingTime();
             final String ping = pingTime < Long.MAX_VALUE ?
                     context.getString(R.string.peer_list_row_ping_time, pingTime) : null;
@@ -83,7 +86,10 @@ public class PeerListAdapter extends ListAdapter<PeerListAdapter.ListItem, PeerL
             } else {
                 icon = null;
             }
-            items.add(new ListItem(hostAndPort, displayHostAndPort, height, version, protocol, services, ping, icon));
+            final ListItem item = new ListItem(hostAndPort, displayHostAndPort, height, version, protocol, services,
+                    ping, icon);
+            if (itemIds.add(item.id))
+                items.add(item);
         }
         return items;
     }
@@ -121,7 +127,7 @@ public class PeerListAdapter extends ListAdapter<PeerListAdapter.ListItem, PeerL
                     .hash().asLong();
         }
 
-        private static final HashFunction ID_HASH = Hashing.farmHashFingerprint64();
+        private static final HashFunction ID_HASH = Hashing.goodFastHash(Long.SIZE);
     }
 
     public interface OnClickListener {
